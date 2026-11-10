@@ -5,8 +5,14 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#F2EDFF">
 <meta name="description" content="Mochi English: game học tiếng Anh vui cùng chú corgi Mochi.">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%90%B6%3C/text%3E%3C/svg%3E">
-<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}img{max-width:100%}[hidden]{display:none!important}</style>
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Mochi English">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}img{max-width:100%}[hidden]{display:none!important}html{-webkit-text-size-adjust:100%;height:100%}body{touch-action:manipulation;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;overscroll-behavior-y:none}input{-webkit-user-select:text;user-select:text}</style>
 <title>Mochi English</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@600;700;800&display=swap">
 <style>
@@ -226,11 +232,18 @@ h1,h2,h3,p{margin:0}
 .mbox .inp{text-align:center}
 .tcard.wide{grid-column:1/-1;display:grid;grid-template-columns:auto 1fr;column-gap:14px;align-items:center;background:var(--sun-soft);border-color:var(--sun);box-shadow:0 5px 0 var(--sun)}
 .tcard.wide .ticon{grid-row:1/4;margin:0}
+.tip{display:flex;gap:8px;align-items:center;background:var(--sky-soft);border:3px solid var(--sky);border-radius:20px;padding:8px 12px;margin-bottom:10px}
+.tipb{flex:1;min-width:0}
+.tipb b{display:block;font:800 16px/1.2 var(--display)}
+.tipb small{font-size:13px;color:var(--ink-soft);font-weight:700}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
 <div id="app"></div>
+<script>
+window.__STANDALONE=1;if("serviceWorker" in navigator&&location.protocol.indexOf("http")===0){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})})}
+</script>
 <script>
 (function(){
 'use strict';
@@ -241,7 +254,7 @@ var shuffle=function(a){a=a.slice();for(var i=a.length-1;i>0;i--){var j=Math.flo
 
 /* ---------- device prefs ---------- */
 var KEY='mochi-english-v2';
-var save={sound:true,level:2,me:null,lp:null,lr:null};
+var save={sound:true,music:true,level:2,me:null,lp:null,lr:null,tipOff:false};
 try{var raw=localStorage.getItem(KEY);if(raw){var o=JSON.parse(raw);for(var k in o)save[k]=o[k]}}catch(e){}
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}}
 
@@ -264,6 +277,46 @@ var sfx={
   tap:function(){tone(520,.06,0,'sine',.1)},
   win:function(){[523,659,784,1047].forEach(function(f,i){tone(f,.24,i*.12)})}
 };
+
+/* ---------- background music (original music-box loop, WebAudio) ---------- */
+function ac(){
+  try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();if(actx.state==='suspended')actx.resume();return actx}catch(e){return null}
+}
+var NOTE={C5:523.25,D5:587.33,E5:659.25,G5:783.99,A5:880,C6:1046.5};
+var MELBARS=[
+ 'E5 . G5 . A5 . G5 .','E5 . D5 . C5 . . .','C5 . D5 . E5 . G5 .','A5 . G5 . D5 . . .',
+ 'G5 . A5 . C6 . A5 .','G5 . E5 . D5 . C5 .','D5 . E5 . G5 . E5 .','D5 . C5 . D5 . . .'
+].map(function(b){return b.split(' ')});
+var BARCH=[0,1,2,3,0,1,2,3];
+var ARP=[[261.63,329.63,392],[220,261.63,329.63],[174.61,220,261.63],[196,246.94,293.66]];
+var BASSF=[130.81,110,87.31,98];
+var MU={on:false,armed:false,g:null,timer:null,t:0,s:0,vol:.6};
+function mNote(f,t,dur,vol,type){
+  var c=actx,o=c.createOscillator(),g=c.createGain();
+  o.type=type||'sine';o.frequency.value=f;
+  g.gain.setValueAtTime(.0001,t);g.gain.linearRampToValueAtTime(vol,t+.012);g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+  o.connect(g);g.connect(MU.g);o.start(t);o.stop(t+dur+.05);
+}
+function musicTick(){
+  if(!MU.on||!actx)return;
+  while(MU.t<actx.currentTime+.5){
+    var st=MU.s%64,bar=Math.floor(st/8),sl=st%8,t=MU.t,ch=BARCH[bar],m=MELBARS[bar][sl];
+    if(m&&m!=='.'){var f=NOTE[m];mNote(f,t,1.1,.07);mNote(f*2,t,.5,.016,'triangle')}
+    mNote(ARP[ch][[0,1,2,1,0,1,2,1][sl]],t,.7,.028);
+    if(sl===0)mNote(BASSF[ch],t,1.5,.06);
+    if(sl===4)mNote(BASSF[ch]*2,t,.9,.03);
+    MU.t+=.32;MU.s++;
+  }
+}
+function musicStart(){
+  if(!save.music||MU.on)return;
+  var c=ac();if(!c)return;
+  if(!MU.g){MU.g=c.createGain();MU.g.gain.value=MU.vol;MU.g.connect(c.destination)}
+  MU.on=true;MU.t=c.currentTime+.1;
+  MU.timer=setInterval(musicTick,120);musicTick();
+}
+function musicStop(){MU.on=false;if(MU.timer){clearInterval(MU.timer);MU.timer=null}}
+function duck(on){if(!MU.g||!actx)return;try{MU.g.gain.setTargetAtTime(on?.15:MU.vol,actx.currentTime,.12)}catch(e){}}
 var canSpeak='speechSynthesis' in window&&'SpeechSynthesisUtterance' in window;
 var voice=null;
 function pickVoice(){
@@ -280,7 +333,7 @@ function speak(text){
     speechSynthesis.cancel();
     var u=new SpeechSynthesisUtterance(text);
     u.lang='en-US';if(voice)u.voice=voice;u.rate=.85;u.pitch=1.1;
-    speechSynthesis.speak(u);return true;
+    u.onend=function(){duck(false)};u.onerror=function(){duck(false)};duck(true);setTimeout(function(){duck(false)},5000);speechSynthesis.speak(u);return true;
   }catch(e){return false}
 }
 
@@ -658,6 +711,15 @@ function initStore(done){
 }
 
 /* ---------- screens ---------- */
+var deferredInstall=null;
+window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();deferredInstall=e;if(screen==='home')renderHome()});
+function isInstalled(){return (window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||window.navigator.standalone===true}
+function installTip(){
+  if(!window.__STANDALONE||isInstalled()||save.tipOff)return '';
+  var ios=/iphone|ipad|ipod/i.test(navigator.userAgent);
+  var msg=deferredInstall?'Cài Mochi về màn hình chính để chơi toàn màn hình, không cần mạng.':ios?'Bấm nút Chia sẻ của Safari, rồi chọn "Thêm vào MH chính".':'Mở menu của trình duyệt, rồi chọn "Thêm vào màn hình chính".';
+  return '<div class="tip"><div class="tipb"><b>Mở như app trên điện thoại</b><small>'+msg+'</small></div>'+(deferredInstall?'<button class="mini" data-act="install">Cài app</button>':'')+'<button class="mini" data-act="tipoff" aria-label="Ẩn gợi ý">✕</button></div>';
+}
 var R=null,tmr=null,screen='splash',pmode='me',parent=false,duo=null,newAv=AVATARS[0],gateAns=0,toDel=null;
 function top(){window.scrollTo(0,0)}
 function stopTimer(){if(tmr){clearInterval(tmr);tmr=null}}
@@ -695,8 +757,8 @@ function renderHome(){
   if(duo&&!dp)duo=null;
   app.innerHTML=
   '<div class="topbar"><div class="logo">Mochi<span>English</span></div>'
-  +'<div class="row"><button class="round" data-act="sound" aria-label="Bật tắt âm thanh">'+(save.sound?'🔊':'🔇')+'</button><div class="pill">⭐ <b>'+stars+'</b></div></div></div>'
-  +'<div class="chiprow"><button class="who" data-act="players" aria-label="Đổi người chơi">'+avc(p)+esc(p.name)+' ▾</button>'
+  +'<div class="row"><button class="round" data-act="music" aria-label="Bật tắt nhạc nền">'+(save.music?'🎵':'🔕')+'</button><button class="round" data-act="sound" aria-label="Bật tắt âm thanh">'+(save.sound?'🔊':'🔇')+'</button><div class="pill">⭐ <b>'+stars+'</b></div></div></div>'
+  +installTip()+'<div class="chiprow"><button class="who" data-act="players" aria-label="Đổi người chơi">'+avc(p)+esc(p.name)+' ▾</button>'
   +(st?'<span class="tag fire">🔥 '+st+' ngày liền</span>':'')+'<span class="tag">🏅 '+(p.points||0)+' điểm</span></div>'
   +'<div class="hero"><button class="mochibtn" data-act="mochi" aria-label="Chạm vào Mochi">'+mochi('idle')+'</button>'
   +'<div class="bubble"><div class="en">Hello, '+esc(p.name)+'!</div><div class="vi">'+greet()+'</div></div></div>'
@@ -786,7 +848,7 @@ function distract(w,n){
 function totalStars(){var n=0;R.ids.forEach(function(i){n+=R.tally[i].stars});return n}
 function renderQuiz(){
   screen='quiz';app.className='';
-  app.innerHTML='<div class="qhead"><button class="xbtn" data-act="quit" aria-label="Thoát">✕</button><div class="bar"><i id="prog" style="width:0%"></i></div><div class="pill sm">⭐ <b id="qs">0</b></div></div>'
+  app.innerHTML='<div class="qhead"><button class="xbtn" data-act="quit" aria-label="Thoát">✕</button><div class="bar"><i id="prog" style="width:0%"></i></div><div class="pill sm">⭐ <b id="qs">0</b></div><button class="round" style="width:36px;height:36px;font-size:16px" data-act="music" aria-label="Bật tắt nhạc nền">'+(save.music?'🎵':'🔕')+'</button></div>'
   +'<div class="timer" id="timer"'+(R.lv.id===3?'':' hidden')+'><i id="tbar"></i></div>'
   +'<div class="coach"><div id="coachm">'+mochi('idle',equipOf(R.ids[0]))+'</div><div class="bubble"><div class="en" id="pen"></div><div class="vi" id="pvi"></div></div></div>'
   +'<div id="stage"></div><div class="sheet" id="sheet" role="status" aria-live="polite"></div>';
@@ -1026,6 +1088,9 @@ document.addEventListener('click',function(e){
   switch(act){
     case 'topic':sfx.tap();startRound(d.id);break;
     case 'level':save.level=+d.l;persist();sfx.tap();renderHome();break;
+    case 'music':save.music=!save.music;persist();if(save.music){MU.armed=true;musicStart()}else musicStop();[].forEach.call(document.querySelectorAll('[data-act=music]'),function(x){x.textContent=save.music?'🎵':'🔕'});break;
+    case 'install':if(deferredInstall){deferredInstall.prompt();deferredInstall.userChoice.then(function(){deferredInstall=null;renderHome()},function(){})}break;
+    case 'tipoff':save.tipOff=true;persist();renderHome();break;
     case 'sound':save.sound=!save.sound;persist();el.textContent=save.sound?'🔊':'🔇';sfx.tap();break;
     case 'mochi':setMood($('.hero .mochi'),'happy');sfx.ok();speak("Hello "+(P(curId())?P(curId()).name:'friend')+"! Let's play!");break;
     case 'players':sfx.tap();renderPlayers('me');break;
@@ -1077,9 +1142,15 @@ document.addEventListener('click',function(e){
     case 'again':sfx.tap();startRound(R.topic.id);break;
   }
 });
+function arm(){MU.armed=true;musicStart()}
+document.addEventListener('pointerdown',arm);
+document.addEventListener('touchend',arm);
+document.addEventListener('keydown',arm);
+document.addEventListener('visibilitychange',function(){if(document.hidden)musicStop();else if(MU.armed)musicStart()});
 renderSplash();
 initStore(function(){renderHome()});
 })();
+
 </script>
 
 </body>
