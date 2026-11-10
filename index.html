@@ -236,6 +236,16 @@ h1,h2,h3,p{margin:0}
 .tipb{flex:1;min-width:0}
 .tipb b{display:block;font:800 16px/1.2 var(--display)}
 .tipb small{font-size:13px;color:var(--ink-soft);font-weight:700}
+.tfword{font:800 34px/1 var(--display);padding:8px 20px;border-radius:18px;background:var(--sun-soft);border:3px solid var(--sun)}
+.ostrip{min-height:62px;width:100%;border:3px dashed var(--line);border-radius:18px;padding:8px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:center;background:#FAF7FF}
+.ostrip .ph{color:var(--ink-soft);font-size:14px;text-align:center}
+.ostrip.ok{border:3px solid var(--mint);background:var(--mint-soft)}
+.ostrip.bad{border:3px solid var(--coral);background:var(--coral-soft)}
+.oc{border-radius:14px;background:var(--pink-soft);border:3px solid var(--pink);padding:4px 10px;font:800 19px var(--display)}
+.otile{border-radius:14px;background:var(--sky-soft);border:3px solid var(--sky);box-shadow:0 4px 0 var(--sky);padding:6px 12px;font:800 19px var(--display);transition:transform .08s,box-shadow .08s}
+.otile:active:not(:disabled){transform:translateY(3px);box-shadow:0 1px 0 var(--sky)}
+.otile.used{opacity:.2;box-shadow:none}
+.fixs{font:800 19px/1.35 var(--display);text-align:center;color:var(--pink-btn-s)}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -593,9 +603,9 @@ function setMood(el,mood){
 
 /* ---------- levels ---------- */
 var LEVELS={
- 1:{id:1,name:'Dễ',emo:'🌱',mult:1,pts:10,n:6,hint:'6 câu, 3 lựa chọn, có gợi ý hình',order:['see','hear','see','fill','spell','hear']},
- 2:{id:2,name:'Vừa',emo:'⭐',mult:2,pts:15,n:8,hint:'8 câu, 4 lựa chọn',order:['see','hear','see','fill','spell','hear','fill','spell']},
- 3:{id:3,name:'Khó',emo:'🔥',mult:3,pts:25,n:8,hint:'8 câu, không gợi ý hình, đồng hồ đếm ngược',order:['hear','fill','spell','fill','hear','spell','fill','spell']}
+ 1:{id:1,name:'Dễ',emo:'🌱',mult:1,pts:10,n:6,hint:'6 câu, 3 lựa chọn, có gợi ý hình, có câu đúng sai',bag:['see','hear','tf','see','fill','spell']},
+ 2:{id:2,name:'Vừa',emo:'⭐',mult:2,pts:15,n:8,hint:'8 câu, nhiều kiểu: dịch từ, từ lạc nhóm, đoán nghĩa, sắp xếp câu',bag:['see','hear','trans','fill','spell','odd','vi','order']},
+ 3:{id:3,name:'Khó',emo:'🔥',mult:3,pts:25,n:10,hint:'10 câu, ít gợi ý hình, nghe và ghép chữ, sắp xếp câu dài, đếm ngược',bag:['hear','order','trans','odd','fill','hspell','vi','spell','order','hspell']}
 };
 var AVATARS=['🐶','🐱','🐰','🦊','🐼','🐻','🦄','🐯','🐸'];
 
@@ -832,9 +842,18 @@ function startRound(id){
   var t=ALLTOPICS.filter(function(x){return x.id===id})[0],lv=lvl();
   var picks=[],seenE={};
   shuffle(t.words).forEach(function(w){if(picks.length<Math.min(lv.n,t.words.length)&&!seenE[w.emo]){seenE[w.emo]=1;picks.push(w)}});
+  var maxTok=lv.id===3?12:8;
+  var types=shuffle(lv.bag.slice()).slice(0,picks.length);
+  var len=function(w){return sentTokens(w).length};
+  var byLen=picks.map(function(_,i){return i}).sort(function(a,b){return len(picks[a])-len(picks[b])});
+  var assign=new Array(picks.length),oi=0;
+  types.forEach(function(ty){if(ty==='order'&&oi<picks.length)assign[byLen[oi++]]=len(picks[byLen[oi-1]])<=maxTok?'order':'fill'});
+  var rest=shuffle(types.filter(function(ty){return ty!=='order'})),k=0;
+  for(var i=0;i<picks.length;i++)if(!assign[i])assign[i]=rest[k++]||'see';
   var ids=(duo&&P(duo))?[save.me,duo]:[save.me];
   var tally={};ids.forEach(function(i){tally[i]={stars:0,pts:0,ok:0,n:0}});
-  var q=picks.map(function(w,i){var pl=i%ids.length;tally[ids[pl]].n++;return {w:w,type:lv.order[i%lv.order.length],retry:false,pl:pl}});
+  var q=shuffle(picks.map(function(w,i){return {w:w,type:assign[i],retry:false}}));
+  q.forEach(function(x,i){x.pl=i%ids.length;tally[ids[x.pl]].n++});
   R={topic:t,lv:lv,picks:picks,q:q,i:0,ids:ids,tally:tally,streak:0,done:{},missed:{},res:null,opts:[],sp:null,peek:false,timeout:false};
   renderQuiz();
 }
@@ -868,21 +887,47 @@ function startTimer(sec){
     if(left<=0){stopTimer();if(R&&!R.res){R.timeout=true;finish(false,null)}}
   },100);
 }
+Object.assign(PROMPT,{
+ tf:['True or false?','Từ này có đúng với hình không?'],
+ trans:['Say it in English!','Từ tiếng Anh của từ này là gì?'],
+ vi:['What does it mean?','Từ này nghĩa là gì?'],
+ odd:['Odd one out!','Từ nào không cùng nhóm?'],
+ order:['Make a sentence!','Sắp xếp các từ thành câu đúng.'],
+ hspell:['Listen and spell!','Nghe rồi ghép chữ cái thành từ.']
+});
+var TBI={};TOPICS.forEach(function(t){TBI[t.id]=t});
+function sentTokens(w){return w.s.replace('___',w.en).split(' ')}
 function setupQuestion(){
-  var q=R.q[R.i],w=q.w,lv=R.lv,pid=R.ids[q.pl];
-  R.res=null;R.timeout=false;
-  R.peek=!canSpeak||(lv.id===1&&false);
+  var q=R.q[R.i],w=q.w,lv=R.lv,pid=R.ids[q.pl],ty=q.type;
+  R.res=null;R.timeout=false;q.ans=w;
+  R.peek=!canSpeak;
   var nopt=(lv.id===1||q.retry)?3:4;
-  if(q.type==='see'||q.type==='hear'||q.type==='fill')R.opts=shuffle([w].concat(distract(w,nopt-1)));
-  if(q.type==='spell'){
+  if(ty==='see'||ty==='hear'||ty==='fill'||ty==='trans'||ty==='vi')R.opts=shuffle([w].concat(distract(w,nopt-1)));
+  if(ty==='odd'){
+    var same=shuffle((BYT[w.t]||[]).filter(function(x){return x!==w&&x.emo!==w.emo})).slice(0,2);
+    var seenE={};seenE[w.emo]=1;same.forEach(function(x){seenE[x.emo]=1});
+    var out=shuffle(MIX.words.filter(function(x){return x.t!==w.t&&!seenE[x.emo]}))[0];
+    q.ans=out;R.opts=shuffle([w].concat(same,[out]));
+  }
+  if(ty==='tf'){
+    var truth=Math.random()<.5,shown=w;
+    if(!truth)shown=distract(w,1)[0]||w;
+    R.tf={shown:shown,truth:shown===w};
+  }
+  if(ty==='order'){
+    var tk=sentTokens(w),tiles=shuffle(tk.map(function(t){return {t:t,used:false}}));
+    if(tiles.map(function(x){return x.t}).join(' ')===tk.join(' '))tiles.reverse();
+    R.ord={target:tk,tiles:tiles,picked:[]};
+  }
+  if(ty==='spell'||ty==='hspell'){
     var letters=w.en.replace(/ /g,'');
     var pool='abcdefghijklmnopqrstuvwxyz'.split('').filter(function(c){return letters.indexOf(c)<0});
     var ne=lv.id===1?0:lv.id===2?(letters.length>5?3:2):4;
-    var tiles=shuffle(letters.split('').concat(shuffle(pool).slice(0,ne))).map(function(ch){return {ch:ch,used:false}});
+    var tl=shuffle(letters.split('').concat(shuffle(pool).slice(0,ne))).map(function(ch){return {ch:ch,used:false}});
     var slots=[];for(var s=0;s<letters.length;s++)slots.push(null);
-    R.sp={letters:letters,tiles:tiles,slots:slots};
+    R.sp={letters:letters,tiles:tl,slots:slots};
   }
-  var p=q.retry?PROMPT.retry:PROMPT[q.type];
+  var p=q.retry?PROMPT.retry:PROMPT[ty];
   var pl=P(pid);
   setPrompt(p[0],(R.ids.length>1&&pl?'Lượt của '+pl.name+' · ':'')+p[1]);
   if(R.ids.length>1)$('#coachm').innerHTML=mochi('idle',equipOf(pid));
@@ -891,52 +936,73 @@ function setupQuestion(){
   $('#prog').style.width=Math.round(Object.keys(R.done).length/R.picks.length*100)+'%';
   $('#qs').textContent=totalStars();
   drawStage();
-  if(q.type==='hear')setTimeout(function(){if(R&&R.q[R.i]===q&&!R.res)speak(w.en)},450);
-  startTimer(q.type==='spell'?40:20);
+  if(ty==='hear'||ty==='hspell')setTimeout(function(){if(R&&R.q[R.i]===q&&!R.res)speak(w.en)},450);
+  startTimer(ty==='order'?50:(ty==='spell'||ty==='hspell')?40:20);
 }
 function optCls(o){
   if(!R.res)return '';
   var q=R.q[R.i];
-  if(o===q.w)return ' ok';
+  if(o===q.ans)return ' ok';
   if(o===R.res.pick)return ' bad';
   return ' dim';
 }
 function optBtns(kind){
   return R.opts.map(function(o,i){
-    return '<button class="opt'+(kind==='emo'?' emo':'')+optCls(o)+'" data-act="pick" data-i="'+i+'"'+(R.res?' disabled':'')+'>'+(kind==='emo'?o.emo:esc(o.en))+'</button>';
+    var label=kind==='emo'?o.emo:kind==='vi'?esc(o.vi):esc(o.en);
+    return '<button class="opt'+(kind==='emo'?' emo':'')+optCls(o)+'" data-act="pick" data-i="'+i+'"'+(R.res?' disabled':'')+'>'+label+'</button>';
   }).join('');
 }
 function drawStage(){
-  var q=R.q[R.i],w=q.w,t=R.topic,lv=R.lv,h='';
-  if(q.type==='hear'){
+  var q=R.q[R.i],w=q.w,lv=R.lv,ty=q.type,h='';
+  var tint=(TBI[w.t]||R.topic).tint;
+  if(ty==='hear'){
     var canPeek=!canSpeak||lv.id<3;
     h='<div class="stage"><button class="speaker" data-act="say" aria-label="Nghe lại">'+SPK+'</button>'
     +((R.peek||R.res||!canSpeak)?'<div class="peek">'+esc(w.en)+'</div>':(canPeek?'<button class="link" data-act="peek">Không nghe được? Xem chữ</button>':''))
     +'<div class="grid2">'+optBtns('emo')+'</div></div>';
-  }else if(q.type==='see'){
-    h='<div class="stage" style="--tint:'+t.tint+'"><div class="bigemo">'+w.emo+'</div><div class="grid2">'+optBtns('txt')+'</div></div>';
-  }else if(q.type==='fill'){
+  }else if(ty==='see'){
+    h='<div class="stage" style="--tint:'+tint+'"><div class="bigemo">'+w.emo+'</div><div class="grid2">'+optBtns('txt')+'</div></div>';
+  }else if(ty==='fill'){
     var parts=w.s.split('___');
-    h='<div class="stage" style="--tint:'+t.tint+'"><div class="sentence">'+((lv.id<3||R.res)?'<div class="semo">'+w.emo+'</div>':'')+'<p class="stext">'+esc(parts[0])+'<span class="blank'+(R.res?' on':'')+'">'+(R.res?esc(w.en):'&nbsp;')+'</span>'+esc(parts[1])+'</p></div><div class="stack">'+optBtns('txt')+'</div></div>';
+    h='<div class="stage" style="--tint:'+tint+'"><div class="sentence">'+((lv.id<3||R.res)?'<div class="semo">'+w.emo+'</div>':'')+'<p class="stext">'+esc(parts[0])+'<span class="blank'+(R.res?' on':'')+'">'+(R.res?esc(w.en):'&nbsp;')+'</span>'+esc(parts[1])+'</p></div><div class="stack">'+optBtns('txt')+'</div></div>';
+  }else if(ty==='trans'){
+    h='<div class="stage" style="--tint:'+tint+'"><div class="bigvi">'+esc(w.vi)+'</div>'+((lv.id<3||R.res)?'<div class="semo">'+w.emo+'</div>':'')+'<div class="grid2">'+optBtns('txt')+'</div></div>';
+  }else if(ty==='vi'){
+    h='<div class="stage" style="--tint:'+tint+'"><div class="row"><div class="bigvi">'+esc(w.en)+'</div><button class="speaker sm" data-act="say" aria-label="Nghe từ">'+SPK+'</button></div>'+((lv.id<3||R.res)?'<div class="semo">'+w.emo+'</div>':'')+'<div class="stack">'+optBtns('vi')+'</div></div>';
+  }else if(ty==='odd'){
+    h='<div class="stage"><div class="meaning">'+((lv.id<3||R.res)?'Nhóm chính: '+esc(TBI[w.t].vi):'Bốn từ, một từ lạc nhóm')+'</div><div class="grid2">'+optBtns('txt')+'</div></div>';
+  }else if(ty==='tf'){
+    var f=R.tf,mk=function(v){return R.res?(v===f.truth?' ok':(R.res.pick===v?' bad':' dim')):''};
+    h='<div class="stage" style="--tint:'+tint+'"><div class="bigemo">'+w.emo+'</div><div class="tfword">'+esc(f.shown.en)+'</div><div class="grid2"><button class="opt'+mk(true)+'" data-act="tf" data-v="1"'+(R.res?' disabled':'')+'>Đúng ✓</button><button class="opt'+mk(false)+'" data-act="tf" data-v="0"'+(R.res?' disabled':'')+'>Sai ✗</button></div></div>';
+  }else if(ty==='order'){
+    var od=R.ord,cls=R.res?(R.res.ok?' ok':' bad'):'';
+    var picked=od.picked.map(function(ti,pos){return '<button class="oc" data-act="ounpick" data-i="'+pos+'"'+(R.res?' disabled':'')+'>'+esc(od.tiles[ti].t)+'</button>'}).join('');
+    var full=od.picked.length===od.tiles.length;
+    h='<div class="stage" style="--tint:'+tint+'">'+((lv.id<3||R.res)?'<div class="row"><div class="semo">'+w.emo+'</div><div class="meaning">'+esc(w.vi)+'</div></div>':'')
+    +'<div class="ostrip'+cls+'">'+(picked||'<span class="ph">Chạm các từ bên dưới theo đúng thứ tự</span>')+'</div>'
+    +(R.res&&!R.res.ok?'<div class="fixs">'+esc(od.target.join(' '))+'</div>':'')
+    +'<div class="tiles">'+od.tiles.map(function(tl,i){return '<button class="otile'+(tl.used?' used':'')+'" data-act="otile" data-i="'+i+'"'+((tl.used||R.res)?' disabled':'')+'>'+esc(tl.t)+'</button>'}).join('')+'</div>'
+    +(R.res?'':'<div class="row" style="width:100%;gap:12px"><button class="link" data-act="oclear">Xóa hết</button><button class="btn pink" data-act="ocheck"'+(full?'':' disabled')+'>Kiểm tra</button></div>')
+    +'</div>';
   }else{
-    var sp=R.sp,idx=0,rows=[];
+    var sp=R.sp,hs=ty==='hspell',idx=0,rows=[];
     w.en.split(' ').forEach(function(g){
       if(g.length>8){var m=Math.ceil(g.length/2);rows.push(m);rows.push(g.length-m)}else rows.push(g.length);
     });
-    var cls=R.res?(R.res.ok?' ok':' bad'):'';
+    var cl=R.res?(R.res.ok?' ok':' bad'):'';
     var srows=rows.map(function(n){
       var s='<div class="srow">';
-      for(var k=0;k<n;k++){var ti=sp.slots[idx];s+='<button class="slot'+(ti!=null&&!R.res?' f':'')+cls+'" data-act="slot" data-i="'+idx+'" aria-label="Ô chữ '+(idx+1)+'"'+(R.res?' disabled':'')+'>'+(ti!=null?sp.tiles[ti].ch:'')+'</button>';idx++}
+      for(var k=0;k<n;k++){var ti=sp.slots[idx];s+='<button class="slot'+(ti!=null&&!R.res?' f':'')+cl+'" data-act="slot" data-i="'+idx+'" aria-label="Ô chữ '+(idx+1)+'"'+(R.res?' disabled':'')+'>'+(ti!=null?sp.tiles[ti].ch:'')+'</button>';idx++}
       return s+'</div>';
     }).join('');
-    var full=sp.slots.indexOf(null)<0;
-    h='<div class="stage" style="--tint:'+t.tint+'"><div class="row">'
-    +(lv.id<3||R.res?'<div class="bigemo" style="width:96px;height:96px;font-size:56px">'+w.emo+'</div>':'<div class="bigvi">'+esc(w.vi)+'</div>')
-    +'<button class="speaker sm" data-act="say" aria-label="Nghe từ">'+SPK+'</button></div>'
-    +((lv.id<3||R.res)?'<div class="meaning">'+esc(w.vi)+'</div>':'')+'<div class="srows">'+srows+'</div>'
+    var fl=sp.slots.indexOf(null)<0;
+    var top2;
+    if(hs)top2='<div class="row"><button class="speaker" data-act="say" aria-label="Nghe lại">'+SPK+'</button></div>'+(R.res?'<div class="row"><div class="semo">'+w.emo+'</div><div class="meaning">'+esc(w.vi)+'</div></div>':'<div class="meaning">Nghe và ghép chữ cái</div>');
+    else top2='<div class="row">'+((lv.id<3||R.res)?'<div class="bigemo" style="width:96px;height:96px;font-size:56px">'+w.emo+'</div>':'<div class="bigvi">'+esc(w.vi)+'</div>')+'<button class="speaker sm" data-act="say" aria-label="Nghe từ">'+SPK+'</button></div>'+((lv.id<3||R.res)?'<div class="meaning">'+esc(w.vi)+'</div>':'');
+    h='<div class="stage" style="--tint:'+tint+'">'+top2+'<div class="srows">'+srows+'</div>'
     +(R.res&&!R.res.ok?'<div class="peek">'+esc(w.en)+'</div>':'')
     +'<div class="tiles">'+sp.tiles.map(function(tl,i){return '<button class="tile'+(tl.used?' used':'')+'" data-act="tile" data-i="'+i+'"'+((tl.used||R.res)?' disabled':'')+'>'+tl.ch+'</button>'}).join('')+'</div>'
-    +(R.res?'':'<div class="row" style="width:100%;gap:12px"><button class="link" data-act="clear">Xóa hết</button><button class="btn pink" data-act="check"'+(full?'':' disabled')+'>Kiểm tra</button></div>')
+    +(R.res?'':'<div class="row" style="width:100%;gap:12px"><button class="link" data-act="clear">Xóa hết</button><button class="btn pink" data-act="check"'+(fl?'':' disabled')+'>Kiểm tra</button></div>')
     +'</div>';
   }
   $('#stage').innerHTML=h;
@@ -957,26 +1023,32 @@ function finish(ok,pick){
   setMood($('#coachm .mochi'),ok?'happy':'sad');
   if(ok){setPrompt('Yay!','Giỏi lắm!');sfx.ok()}else{setPrompt(R.timeout?"Time's up!":'Oh no!',R.timeout?'Hết giờ rồi, cố lên nhé!':'Không sao, cố lên nhé!');sfx.bad()}
   drawStage();
-  var say=q.type==='fill'?w.s.replace('___',w.en):w.en;
+  var say=(q.type==='fill'||q.type==='order')?w.s.replace('___',w.en):(q.ans||w).en;
   setTimeout(function(){speak(say)},350);
   showSheet(ok,gained);
 }
 function showSheet(ok,gained){
-  var q=R.q[R.i],w=q.w,sh=$('#sheet'),title,detail;
+  var q=R.q[R.i],w=q.w,ans=q.ans||w,sh=$('#sheet'),title,detail;
   var last=R.i===R.q.length-1;
   if(ok){
     var p=PRAISE[Math.floor(Math.random()*PRAISE.length)];
     title=p[0];
-    detail=p[1]+' <b>'+esc(w.en)+'</b> nghĩa là '+esc(w.vi)+'.'+(gained?'<br>+'+gained+' điểm':'')+(R.streak>=3?' · 🔥 '+R.streak+' câu đúng liên tiếp!':'');
+    var core=q.type==='odd'?' <b>'+esc(ans.en)+'</b> ('+esc(ans.vi)+') là từ lạc nhóm.':q.type==='order'?' Câu đúng rồi!':' <b>'+esc(ans.en)+'</b> nghĩa là '+esc(ans.vi)+'.';
+    detail=p[1]+core+(gained?'<br>+'+gained+' điểm':'')+(R.streak>=3?' · 🔥 '+R.streak+' câu đúng liên tiếp!':'');
   }else{
     title=R.timeout?'Hết giờ rồi!':'Oops, gần đúng rồi!';
-    detail='Đáp án đúng: <b>'+esc(w.en)+'</b> ('+esc(w.vi)+').'+(q.retry?'':'<br>Mochi sẽ hỏi lại từ này sau nhé.');
+    var core2=q.type==='odd'?'Từ lạc nhóm là <b>'+esc(ans.en)+'</b> ('+esc(ans.vi)+').':q.type==='order'?'Câu đúng: <b>'+esc(R.ord.target.join(' '))+'</b>':'Đáp án đúng: <b>'+esc(ans.en)+'</b> ('+esc(ans.vi)+').';
+    detail=core2+(q.retry?'':'<br>Mochi sẽ hỏi lại từ này sau nhé.');
   }
   sh.className='sheet '+(ok?'ok':'bad')+' show';
   sh.innerHTML='<div class="sheet-in"><div class="st">'+title+'</div><div class="sd">'+detail+'</div><button class="btn '+(ok?'green':'coral')+'" data-act="next" id="nextbtn">'+(last?'Xong rồi':'Tiếp tục')+'</button></div>';
   app.classList.add('has-sheet');
   try{$('#nextbtn').focus({preventScroll:true})}catch(e){}
 }
+function otile(i){var od=R.ord;if(R.res||od.tiles[i].used)return;od.tiles[i].used=true;od.picked.push(i);sfx.tap();drawStage()}
+function ounpick(pos){var od=R.ord;if(R.res)return;var ti=od.picked.splice(pos,1)[0];od.tiles[ti].used=false;drawStage()}
+function oclear(){var od=R.ord;if(R.res)return;od.picked=[];od.tiles.forEach(function(t){t.used=false});drawStage()}
+function ocheck(){var od=R.ord;if(R.res||od.picked.length!==od.tiles.length)return;finish(od.picked.map(function(ti){return od.tiles[ti].t}).join(' ')===od.target.join(' '),null)}
 function nextQ(){
   sfx.tap();
   R.i++;
@@ -1130,7 +1202,12 @@ document.addEventListener('click',function(e){
     case 'say':speak(R.q[R.i].w.en);break;
     case 'sayw':speak(d.w);break;
     case 'peek':R.peek=true;drawStage();break;
-    case 'pick':if(R.res)break;var o=R.opts[+d.i];finish(o===R.q[R.i].w,o);break;
+    case 'pick':if(R.res)break;var o=R.opts[+d.i];finish(o===R.q[R.i].ans,o);break;
+    case 'tf':if(R.res)break;var tv=d.v==='1';finish(tv===R.tf.truth,tv);break;
+    case 'otile':otile(+d.i);break;
+    case 'ounpick':ounpick(+d.i);break;
+    case 'oclear':oclear();break;
+    case 'ocheck':ocheck();break;
     case 'tile':tapTile(+d.i);break;
     case 'slot':tapSlot(+d.i);break;
     case 'clear':clearSlots();break;
