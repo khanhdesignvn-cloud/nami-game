@@ -1,0 +1,48 @@
+name: Tạo giọng đọc Bé Vui Học Chữ
+
+on:
+  workflow_dispatch:
+    inputs:
+      voice:
+        description: 'Giọng Edge TTS (vi-VN-HoaiMyNeural hoặc vi-VN-NamMinhNeural)'
+        default: 'vi-VN-HoaiMyNeural'
+      rate:
+        description: 'Tốc độ (vd -8%, +0%)'
+        default: '-8%'
+  push:
+    branches: [main]
+    paths:
+      - 'hoc-chu/voice/phrases.json'
+      - 'hoc-chu/voice/build.py'
+      - '.github/workflows/hoc-chu-voice.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: hoc-chu-voice
+  cancel-in-progress: true
+
+jobs:
+  voice:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+      - run: pip install edge-tts
+      - name: Tạo giọng
+        env:
+          VOICE: ${{ github.event.inputs.voice || 'vi-VN-HoaiMyNeural' }}
+          RATE: ${{ github.event.inputs.rate || '-8%' }}
+        run: python hoc-chu/voice/build.py
+      - name: Lưu vào repo
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898+github-actions[bot]@users.noreply.github.com"
+          git add hoc-chu/voice
+          git diff --cached --quiet || git commit -m "Tạo giọng đọc Hoài My cho Bé Vui Học Chữ"
+          git pull --rebase origin main
+          git push origin HEAD:main

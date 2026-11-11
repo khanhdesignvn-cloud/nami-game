@@ -300,6 +300,7 @@ button{font-family:inherit;border:0;cursor:pointer;color:inherit;padding:0}
   <canvas id="fx"></canvas>
 </div>
 
+<script src="voice/voice.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
@@ -418,6 +419,7 @@ function rankV(v){const n=v.name.toLowerCase();let s=0;if(/natural|neural|online
 function pickVoice(){try{const all=speechSynthesis.getVoices();anyVoice=all.length>0;voices=all.filter(v=>/^vi/i.test(v.lang)).sort((a,b)=>rankV(b)-rankV(a));voice=voices.find(v=>v.name===vname)||voices[0]||null}catch(e){}}
 try{speechSynthesis.onvoiceschanged=pickVoice;pickVoice()}catch(e){}
 const AUDIO={}; /*__AUDIO__*/
+try{Object.assign(AUDIO,window.VOICE_CLIPS||{})}catch(e){}
 let clipEl=null,clipTok=0;
 const nk=x=>x.trim().replace(/[.!?…]+$/,'').toLowerCase();
 function stopClips(){clipTok++;if(clipEl){try{clipEl.pause()}catch(e){}clipEl=null}}
