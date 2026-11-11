@@ -21,15 +21,18 @@ AF = ('highpass=f=70,'
 async def one(i, text, sem):
     out = os.path.join(CLIPS, f'{i:03d}.mp3')
     raw = out + '.raw.mp3'
+    if os.path.exists(out) and os.path.getsize(out) > 500:
+        return
     async with sem:
-        for attempt in range(4):
+        for attempt in range(8):
             try:
                 await edge_tts.Communicate(text, VOICE, rate=RATE, pitch=PITCH).save(raw)
                 if os.path.getsize(raw) > 500:
+                    await asyncio.sleep(0.4)
                     break
             except Exception as e:
                 print('retry', i, text, e)
-                await asyncio.sleep(2 + attempt * 2)
+                await asyncio.sleep(3 + attempt * 4)
         else:
             print('FAILED', i, text)
             return
@@ -39,9 +42,13 @@ async def one(i, text, sem):
 
 
 async def main():
+    if os.environ.get('FRESH') == '1':
+        for f in os.listdir(CLIPS):
+            os.remove(os.path.join(CLIPS, f))
     for f in os.listdir(CLIPS):
-        os.remove(os.path.join(CLIPS, f))
-    sem = asyncio.Semaphore(5)
+        if f.endswith('.raw.mp3'):
+            os.remove(os.path.join(CLIPS, f))
+    sem = asyncio.Semaphore(2)
     await asyncio.gather(*(one(i, t, sem) for i, t in enumerate(phrases)))
     m = {}
     for i, t in enumerate(phrases):
@@ -51,6 +58,6 @@ async def main():
         f.write('window.VOICE_CLIPS=' + json.dumps(m, ensure_ascii=False, separators=(',', ':')) + ';\n')
     print(f'{len(m)}/{len(phrases)} câu, giọng {VOICE}')
     if len(m) < len(phrases):
-        sys.exit(1)
+        print('Còn thiếu câu, chạy lại workflow để tạo nốt.')
 
 asyncio.run(main())

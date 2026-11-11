@@ -9,6 +9,9 @@ on:
       rate:
         description: 'Tốc độ (vd -8%, +0%)'
         default: '-8%'
+      fresh:
+        description: 'Tạo lại toàn bộ (1) hay chỉ tạo câu còn thiếu (0)'
+        default: '0'
   push:
     branches: [main]
     paths:
@@ -37,6 +40,7 @@ jobs:
         env:
           VOICE: ${{ github.event.inputs.voice || 'vi-VN-HoaiMyNeural' }}
           RATE: ${{ github.event.inputs.rate || '-8%' }}
+          FRESH: ${{ github.event.inputs.fresh || '0' }}
         run: python hoc-chu/voice/build.py
       - name: Lưu vào repo
         run: |
