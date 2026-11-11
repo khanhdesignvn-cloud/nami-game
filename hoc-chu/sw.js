@@ -1,4 +1,4 @@
-var C='be-vui-hoc-chu-v1';
+var C='be-vui-hoc-chu-v2';
 var CORE=['./','index.html','manifest.webmanifest','icons/icon-192.png','icons/icon-512.png','icons/apple-touch-icon.png'];
 self.addEventListener('install',function(e){
   e.waitUntil(caches.open(C).then(function(c){return c.addAll(CORE)}).then(function(){return self.skipWaiting()}));
