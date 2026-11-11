@@ -1,0 +1,49 @@
+name: Tạo giọng đọc Chopper English
+
+on:
+  workflow_dispatch:
+    inputs:
+      voice_en:
+        description: 'Giọng tiếng Anh (vd en-US-JennyNeural, en-US-AnaNeural, en-GB-SoniaNeural)'
+        default: 'en-US-JennyNeural'
+      rate:
+        description: 'Tốc độ (vd -10%, +0%)'
+        default: '-10%'
+  push:
+    branches: [main]
+    paths:
+      - 'voice/phrases.json'
+      - 'voice/build.py'
+      - '.github/workflows/chopper-voice.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: chopper-voice
+  cancel-in-progress: false
+
+jobs:
+  voice:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+      - run: pip install edge-tts
+      - name: Tạo giọng
+        env:
+          VOICE_EN: ${{ github.event.inputs.voice_en || 'en-US-JennyNeural' }}
+          RATE: ${{ github.event.inputs.rate || '-10%' }}
+        run: python voice/build.py
+      - name: Lưu vào repo
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898+github-actions[bot]@users.noreply.github.com"
+          git add voice
+          git diff --cached --quiet || git commit -m "Tạo giọng đọc cho Chopper English"
+          git pull --rebase origin main
+          git push origin HEAD:main

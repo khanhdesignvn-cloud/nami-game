@@ -1,14 +1,14 @@
-# Mochi English
+# Chopper English
 
-Game học tiếng Anh cho Nami cùng chú corgi Mochi. Một file `index.html`, không cần cài đặt hay máy chủ.
+Game học tiếng Anh cho Nami cùng chú chó 3D Chopper (trước đây là Mochi English). Một file `index.html`, không cần cài đặt hay máy chủ.
 
-- 16 chủ đề và chế độ Trộn tất cả, 3 độ khó (Dễ, Vừa, Khó có đồng hồ đếm ngược)
-- 4 kiểu câu hỏi: nghe, nhìn hình, điền từ, ghép chữ cái
-- Tích sao và điểm, chơi liên tiếp nhiều ngày được thưởng, mở 12 món đồ cho Mochi
+- Chó Chopper 3D có biểu cảm, sống trong khu vườn 3D với 8 kiểu cảnh (đồng cỏ, bãi biển, tuyết, đêm sao...)
+- 174 món sưu tầm: mũ, kính, khăn, áo, cánh, giày, đồ chơi, màu lông, đồ trang trí vườn, màu nhà, cảnh. Mỗi vòng chơi nhận 1 đến 3 món quà
+- 16 chủ đề và chế độ Trộn tất cả, 3 độ khó, 10 kiểu câu hỏi
+- 4 trò chơi nhanh: Balloon Pop, Memory, Missing Letter, Match Up
+- Giọng đọc thu sẵn (Edge TTS giọng nữ, lọc âm theo cách của khanh-voice), tạo tự động bằng GitHub Actions từ `voice/phrases.json`
 - Chơi cặp đôi cùng ba mẹ, bảng điểm gia đình và phần thưởng thật của cả nhà
-- Nhạc nền music box dễ thương (tự tạo bằng WebAudio, có nút tắt/bật)
-- Cài như app (PWA): thêm vào màn hình chính, chạy toàn màn hình, chơi được khi không có mạng
-- Điểm tự động lưu trên thiết bị đang chơi (localStorage)
+- Nhạc nền music box (tự tạo bằng WebAudio, có nút tắt/bật), cài như app (PWA), điểm lưu trên thiết bị
 
 Chơi tại: https://khanhdesignvn-cloud.github.io/nami-game/
 
