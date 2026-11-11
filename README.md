@@ -11,3 +11,16 @@ Game học tiếng Anh cho Nami cùng chú corgi Mochi. Một file `index.html`,
 - Điểm tự động lưu trên thiết bị đang chơi (localStorage)
 
 Chơi tại: https://khanhdesignvn-cloud.github.io/nami-game/
+
+---
+
+# Bé Vui Học Chữ
+
+Game học chữ cái tiếng Việt cho Nami chuẩn bị vào lớp 1, nằm trong thư mục `hoc-chu/`. Một file `index.html`, không cần cài đặt hay máy chủ.
+
+- 10 trò chơi, mỗi trò có một bạn thú dẫn: Học chữ cái, Tô màu, Cắt dán, Ghép chữ, Nghe & chọn, Chữ đầu tiên, Bóng bay chữ, Lật thẻ, Hoa & thường, Tô nét chữ
+- Thỏ bông 3D đi cùng bé; chơi xong mỗi trò được chọn quà để trang trí thỏ (18 món), có Tủ đồ của thỏ
+- Đọc 29 chữ cái bằng giọng tiếng Việt của máy, chọn giọng và tốc độ ở nút 🔊; hỗ trợ nhúng giọng thu sẵn
+- Cài như app (PWA), sao và đồ của thỏ lưu trên thiết bị đang chơi
+
+Chơi tại: https://khanhdesignvn-cloud.github.io/nami-game/hoc-chu/
