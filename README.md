@@ -24,3 +24,17 @@ Game học chữ cái tiếng Việt cho Nami chuẩn bị vào lớp 1, nằm t
 - Cài như app (PWA), sao và đồ của thỏ lưu trên thiết bị đang chơi
 
 Chơi tại: https://khanhdesignvn-cloud.github.io/nami-game/hoc-chu/
+
+---
+
+# Công Chúa Xinh Đẹp
+
+Game trang điểm và thay đồ cho công chúa, nằm trong thư mục `cong-chua/`. Một file `index.html`.
+
+- Trang điểm: kiểu mắt và màu mắt, phấn mắt, son (4 kiểu môi, 10 màu), má hồng, hình dán mặt, màu da
+- Tóc: 8 kiểu, 4 kiểu mái, 10 màu (có màu cầu vồng)
+- Váy: 8 kiểu (dạ hội, xếp tầng, đuôi cá, xòe, áo dài...) với 10 màu
+- Phụ kiện: vương miện, bông tai, vòng cổ, kính, cánh, đồ cầm tay, giày, thú cưng, 8 phông nền
+- Ngẫu nhiên, trình diễn chấm điểm tim, chụp ảnh và album lưu trên thiết bị
+
+Chơi tại: https://khanhdesignvn-cloud.github.io/nami-game/cong-chua/
